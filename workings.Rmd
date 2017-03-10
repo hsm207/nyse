@@ -1,0 +1,109 @@
+---
+title: "Workings"
+output:
+  html_notebook:
+    toc: yes
+    toc_float: yes
+  github_document:
+    toc: yes
+---
+
+# Load libraries
+```{r}
+library(magrittr)
+library(ggplot2)
+```
+
+# Merge datasets
+Load datasets:
+```{r cache = TRUE, results='hide'}
+library(readr)
+
+fun.df <- read_csv("./data/fundamentals.csv", 
+    col_types = cols(`Period Ending` = col_date(format = "%Y-%m-%d"), 
+        X1 = col_skip()))
+
+quotes.df <- read_csv("./data/prices-split-adjusted.csv", 
+    col_types = cols(date = col_date(format = "%Y-%m-%d")))
+
+secs.df <- read_csv("D:/Code/R/Kaggle/nyse/data/securities.csv", 
+    col_types = cols(`Date first added` = col_date(format = "%Y-%m-%d")))
+```
+Join `quotes.df` with `secs.df`:
+```{r}
+quotes.df %<>%
+  dplyr::left_join(secs.df, by = c("symbol" = "Ticker symbol"))
+```
+
+## Merging fundamentals data with price data
+Add period that the fundamentals data cover:
+
+Note:
+
+1. We assume data is available 90 days after a period end.
+
+2. SEC actually has a range of [deadlines](https://en.wikipedia.org/wiki/Form_10-K#Filing_deadlines) to file the Form 10-K reports.
+```{r}
+fun.df %<>%
+  dplyr::mutate(
+  min.cover = `Period Ending` + 90,
+  max.cover = c(`Period Ending`[-1], `Period Ending`[n()] + lubridate::dyears(1)) + 90
+  )
+```
+
+Join the fundamentals data to the prices data:
+```{r}
+quotes.fun.df <- quotes.df %>%
+  dplyr::left_join(fun.df, c("symbol" = "Ticker Symbol")) %>%
+  dplyr::filter(date >= min.cover & date <= max.cover)
+  
+```
+
+View a random sample to double check that the join makes sense:
+```{r}
+tgt.cols <- c("Period Ending", "min.cover", "max.cover")
+
+quotes.fun.df %>%
+  dplyr::sample_n(20) %>%
+  dplyr::select(match(tgt.cols, names(.)),
+                match(setdiff(names(.), tgt.cols), names(.)))
+```
+
+What are the quotes that are missing fundamentals data?
+```{r}
+x <- quotes.df %>%
+  dplyr::select(date, symbol)
+
+y <- quotes.fun.df %>%
+  dplyr::select(date, symbol)
+
+dplyr::setdiff(x, y) %>%
+  dplyr::mutate(year = lubridate::year(date)) %>%
+  dplyr::group_by(symbol, year) %>%
+  dplyr::summarise(count = n())
+```
+
+How many stocks have fundamentals data?
+```{r}
+quotes.fun.df %>%
+  dplyr::group_by(symbol) %>%
+  dplyr::summarise(obs = n(), min.ob = min(date), max.ob = max(date)) %>%
+  dplyr::arrange(obs) 
+```
+
+# Data Preprocessing
+## Financial Ratios
+Add some ratios computed off the fundamentals data:
+```{r}
+quotes.fun.df %<>%
+  dplyr::mutate(`p/e ratio` = close/`Earnings Per Share`,
+                `debt/equity ratio` = `Total Liabilities`/`Total Equity`)
+```
+
+Sanity check the fundamentals data:
+```{r}
+quotes.fun.df %>%
+  dplyr::select(-date:-`Period Ending`, -min.cover, -max.cover) %>%
+  summary
+```
+
