@@ -1,2 +1,2 @@
 # nyse
-Work on nyse dataset from Kaggle.
+Work on [nyse dataset](https://www.kaggle.com/dgawlik/nyse) from Kaggle.
