@@ -91,4 +91,19 @@ quotes.fun.df %>%
   dplyr::arrange(obs) 
 ```
 
+# Data Preprocessing
+## Financial Ratios
+Add some ratios computed off the fundamentals data:
+```{r}
+quotes.fun.df %<>%
+  dplyr::mutate(`p/e ratio` = close/`Earnings Per Share`,
+                `debt/equity ratio` = `Total Liabilities`/`Total Equity`)
+```
+
+Sanity check the fundamentals data:
+```{r}
+quotes.fun.df %>%
+  dplyr::select(-date:-`Period Ending`, -min.cover, -max.cover) %>%
+  summary
+```
 
