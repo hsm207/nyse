@@ -33,6 +33,8 @@ Join `quotes.df` with `secs.df`:
 ```{r}
 quotes.df %<>%
   dplyr::left_join(secs.df, by = c("symbol" = "Ticker symbol"))
+
+write.csv(quotes.df, "./data/quotes_with_secs.csv", row.names = F)
 ```
 
 ## Merging fundamentals data with price data
@@ -56,7 +58,7 @@ Join the fundamentals data to the prices data:
 quotes.fun.df <- quotes.df %>%
   dplyr::left_join(fun.df, c("symbol" = "Ticker Symbol")) %>%
   dplyr::filter(date >= min.cover & date <= max.cover)
-  
+
 ```
 
 View a random sample to double check that the join makes sense:
@@ -98,6 +100,8 @@ Add some ratios computed off the fundamentals data:
 quotes.fun.df %<>%
   dplyr::mutate(`p/e ratio` = close/`Earnings Per Share`,
                 `debt/equity ratio` = `Total Liabilities`/`Total Equity`)
+
+write.csv(quotes.fun.df, "./data/quotes_with_fun.csv", row.names = F)
 ```
 
 Sanity check the fundamentals data:
