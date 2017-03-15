@@ -110,4 +110,7 @@ quotes.fun.df %>%
   dplyr::select(-date:-`Period Ending`, -min.cover, -max.cover) %>%
   summary
 ```
+Conclusion:
+
+Data is not usable due to nonsensical values e.g. negative liabilities.
 
