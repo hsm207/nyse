@@ -13,6 +13,97 @@ output:
 library(magrittr)
 library(ggplot2)
 ```
+# Data cleaning
+## Bloomberg fundamentals data
+Load the dataset:
+```{r}
+library(readr)
+bloomberg.df <- read_csv("./data/Bloomberg Fundamentals_Input_copy.csv", na = c("#N/A N/A"))
+```
+Number of unique indicators:
+```{r}
+bloomberg.df %>%
+  dplyr::select(Indicator_Name) %>%
+  unique %>%
+  dplyr::arrange(Indicator_Name)
+```
+Number of stocks per indicator (that is not equal to 30):
+```{r}
+bloomberg.df %>%
+  dplyr::select(Name, Indicator_Name) %>%
+  dplyr::group_by(Indicator_Name) %>%
+  dplyr::summarise(`# of stocks` = length(Name)) %>%
+  dplyr::filter(`# of stocks` != 30) %>%
+  dplyr::arrange(`# of stocks`)
+```
+Create lookup table for indicators:
+```{r}
+indicator.df <- bloomberg.df %>%
+  dplyr::select(Indicator_Code, Indicator_Name) %>%
+  dplyr::arrange(Indicator_Code) %>%
+  dplyr::distinct()
+
+indicator.df
+```
+
+View messed up rows in  `bloomberg.df`:
+```{r}
+bloomberg.df %>%
+  dplyr::select(-Indicator_Name) %>%
+  tidyr::gather(year, value, `CY1 2000`:`CY1 2016`) %>%
+  dplyr::distinct() -> tmp.df
+
+mess.index <- c(8951, 9053, 13722, 13824, 18494, 18597, 23267, 23370, 28040, 28143, 32813, 32914, 37584, 37685, 42355, 42456, 47126, 47227, 51897, 52000, 56670, 56772, 8960, 9052, 13731, 13823, 18503, 18596, 23276, 23369, 28049, 28142, 32822, 32913, 37593, 37684, 42364, 42455, 47135, 47226, 51906, 51999, 56679, 56771, 8963, 8973, 13734, 13744, 18506, 18516, 23279, 23289, 28052, 28062, 32825, 32835, 37596, 37606, 42367, 42377, 47138, 47148, 51909, 51919, 56682, 56692, 79325, 79420, 79499, 79594, 79835, 79931, 4138, 4223, 8906, 8992, 13678, 13763, 18449, 18535, 23222, 23308, 27995, 28081, 32768, 32854, 37539, 37625, 42310, 42396, 47081, 47167, 51852, 51938, 56625, 56711, 4246, 4266, 9015, 9035, 13786, 13807, 18558, 18579, 23331, 23352, 28104, 28125, 32877, 32896, 37648, 37667, 42419, 42438, 47190, 47209, 51961, 51982, 79329, 79481, 79503, 79654)
+
+tmp.df[mess.index, ]
+```
+
+Convert `bloomberg.df` to desired format:
+```{r}
+bloomberg.df %>%
+  dplyr::select(-Indicator_Name) %>%
+  tidyr::gather(year, value, `CY1 2000`:`CY1 2016`) %>%
+  dplyr::distinct(Ticker, Indicator_Code, year, .keep_all = T) %>%
+  tidyr::spread(Indicator_Code, value) ->
+  bloomberg.clean.df
+
+bloomberg.clean.df
+```
+Count missing values in each column:
+```{r}
+bloomberg.clean.df %>%
+  purrr::dmap(function(x) sum(is.na(x))) %>%
+  tidyr::gather("Variable", "NA count", Ticker:XO_LOSS_PRETAX_YR_GROWTH) %>%
+  dplyr::arrange(dplyr::desc(`NA count`))
+```
+Drop columns where half of its values are missing:
+```{r}
+drop.cols <- bloomberg.clean.df %>%
+  purrr::dmap(function(x)
+  sum(is.na(x))) %>%
+  purrr::keep(function (x)
+  x >= 0.5 * nrow(bloomberg.clean.df)) %>%
+  colnames()
+
+bloomberg.clean.df %<>%
+  dplyr::select(-dplyr::one_of(drop.cols))
+
+summary(bloomberg.clean.df)
+```
+Count the number of NAs in each column again:
+```{r}
+bloomberg.clean.df %>%
+  purrr::dmap(function(x) sum(is.na(x))) %>%
+  tidyr::gather("Variable", "NA count", dplyr::everything()) %>%
+  dplyr::arrange(dplyr::desc(`NA count`))
+```
+Count NA's by stock and year:
+```{r, echo=TRUE}
+bloomberg.clean.df %>%
+  dplyr::group_by(Ticker, year) %>%
+  dplyr::do(data.frame(`NA count` = sum(is.na(.)))) %>%
+  dplyr::arrange(dplyr::desc(NA.count))
+```
 
 # Merge datasets
 Load datasets:
