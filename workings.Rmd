@@ -112,6 +112,31 @@ bloomberg.clean.df %>%
   dplyr::do(data.frame(`NA count` = sum(is.na(.)))) %>%
   dplyr::arrange(dplyr::desc(NA.count))
 ```
+# Historical prices
+Retrieve historical prices of DJIA and its components:
+```{r}
+tickers <- bloomberg.clean.df %>%
+  extract2("Ticker") %>%
+  unique %>%
+  stringr::str_match("([A-Z]{1,4}) [A-Z]{2}") %>%
+  .[, 2] %>%
+  c(., "^DJI")
+
+prices.df <-
+  tidyquant::tq_get(tickers, from = "2000-01-01", to = "2016-12-31")
+
+prices.df %>%
+  dplyr::group_by(symbol) %>%
+  dplyr::summarise(min(date), max(date)) %>%
+  dplyr::arrange(symbol)
+
+```
+
+Save prices:
+```{r}
+write.csv(prices.df, "./data/prices_yahoo.csv", row.names = F)
+```
+
 
 Save cleaned fundamentals data:
 ```{r}
